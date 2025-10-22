@@ -188,7 +188,7 @@ def classify_hs_code_rag(product_name: str, product_description: str, top_n: int
 
     # 3) JSON 모드 호출
     response = client.chat.completions.create(
-        model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+        model=os.getenv("OPENAI_MODEL", "gpt-4o"),
         messages=[
             {"role": "system", "content": sys_prompt},
             {"role": "user",   "content": user_prompt}

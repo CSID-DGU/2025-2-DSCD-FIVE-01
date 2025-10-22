@@ -123,7 +123,6 @@ def build_rag_prompt(product_name: str, product_description: str, retrieved: Lis
     """
     system = (
         "당신은 HS 코드 분류 전문가입니다. 제공된 컨텍스트의 내용만 사용해서 답하세요. "
-        "추측하지 말고, 근거가 부족하면 '모름'이라고 하세요. "
         "항상 JSON 스키마로만 응답하세요."
     )
 
@@ -158,7 +157,6 @@ def build_rag_prompt(product_name: str, product_description: str, retrieved: Lis
       "title": "string",
       "reason": "string",          // 한국어, 200자 이내
       "gri": ["string"],           // 적용 GRI; 불명확하면 빈 배열
-      "confidence": 0.0,           // 0~1 사이
       "citations": [{{"doc_id":"string"}}]  // [DOC id=...]의 id 사용
     }}
   ]
@@ -195,7 +193,7 @@ def classify_hs_code_rag(product_name: str, product_description: str, top_n: int
             {"role": "system", "content": sys_prompt},
             {"role": "user",   "content": user_prompt}
         ],
-        temperature=0.2,
+        temperature=0.0,
         response_format={"type": "json_object"}  # <- 핵심: 순수 JSON만 반환
     )
 

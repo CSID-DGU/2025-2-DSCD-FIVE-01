@@ -40,7 +40,7 @@ def _parse_json_safely(text: str):
 
 def classify_hs_code(product_name, product_description, top_n=3):
     """
-    ChatGPT API를 활용하여 HS 코드 후보 분류 및 근거/관세율/FTA 국가 정보 반환
+    ChatGPT API를 활용하여 HS 코드 후보 분류 및 근거
     """
     prompt = f"""
     You are an expert customs classifier.
@@ -71,7 +71,7 @@ def classify_hs_code(product_name, product_description, top_n=3):
             {"role": "system", "content": "You are a customs and HS code classification expert."},
             {"role": "user", "content": prompt}
         ],
-        temperature=0.2,
+        temperature=0.0,
         response_format={"type": "json_object"}
     )
 

@@ -27,7 +27,7 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Chroma 설정(폴더 경로 = chroma.sqlite3가 들어있는 디렉터리)
-CHROMA_DIR = os.getenv("CHROMA_DIR", r"../chroma_db")  # 예: C:\...\embedding\chroma_db
+CHROMA_DIR = os.getenv("CHROMA_DIR", r"../chroma_db_orgnl")  # 예: C:\...\embedding\chroma_db
 COLLECTION_NAME = os.getenv("CHROMA_COLLECTION", "hscode_collection")
 
 # 인덱싱 때 썼던 임베딩 모델과 반드시 동일하게!
@@ -279,8 +279,8 @@ def classify_hs_code_rag(product_name: str, product_description: str, top_n: int
     emb = QueryEmbedder(EMBED_MODEL)
     col = open_chroma_collection(CHROMA_DIR, COLLECTION_NAME)
     original_query_text = f"{product_name}\n{product_description}"
-    keyword_query_text = extract_keywords_advanced(original_query_text)
-    
+    # keyword_query_text = extract_keywords_advanced(original_query_text)
+    keyword_query_text = original_query_text
     hits = search_chroma(col, emb, keyword_query_text, top_k=max(8, top_n*3))
 
     # 2) GraphRAG에서 계층 구조 정보 검색
@@ -302,7 +302,8 @@ def classify_hs_code_rag(product_name: str, product_description: str, top_n: int
             {"role": "user",   "content": user_prompt}
         ],
         temperature=0.2,
-        response_format={"type": "json_object"}  # <- 핵심: 순수 JSON만 반환
+        response_format={"type": "json_object"},  # <- 핵심: 순수 JSON만 반환
+        timeout=120
     )
 
     output_text = response.choices[0].message.content.strip()
@@ -332,8 +333,8 @@ def get_enhanced_context(product_name: str, product_description: str, k: int = 5
     emb = QueryEmbedder(EMBED_MODEL)
     col = open_chroma_collection(CHROMA_DIR, COLLECTION_NAME)
     original_query_text = f"{product_name}\n{product_description}"
-    keyword_query_text = extract_keywords_advanced(original_query_text)
-    
+    # keyword_query_text = extract_keywords_advanced(original_query_text)
+    keyword_query_text = original_query_text
     hits = search_chroma(col, emb, keyword_query_text, top_k=8)
     
     # ChromaDB 컨텍스트 구성

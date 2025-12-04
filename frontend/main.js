@@ -82,7 +82,10 @@ function formatRecommendationText(rec, index) {
 
   // HS Code 라인(볼드 + 폰트 조금 더 크게, CSS .hs-code-line과도 연동)
   if (hs) {
-    text += `<div class="hs-code-line">HS Code: ${hs}</div>`;
+    // 점(.)이나 공백 제거 후 숫자만 추출 (API 전달용)
+    const cleanHs = String(hs).replace(/[^0-9]/g, "");
+    
+    text += `<div class="hs-code-line">HS Code: <span class="hs-link" onclick="showTariff('${cleanHs}')" title="클릭하여 관세율 확인">${hs}</span></div>`;
   }
 
   if (title) {
@@ -428,3 +431,79 @@ resetBtn.addEventListener("click", resetConversation);
 // ===================== 최초 진입 시 =====================
 
 showWelcome();
+
+// ============================================================
+//  [추가됨] 관세율 조회 및 모달 제어 로직
+// ============================================================
+
+async function showTariff(hscode) {
+  const modal = document.getElementById("tariffModal");
+  const modalTitle = document.getElementById("modalTitle");
+  const loading = document.getElementById("modalLoading");
+  const table = document.getElementById("modalTable");
+  const tbody = document.getElementById("modalTableBody");
+
+  // 1. 모달 열기 및 초기화
+  modal.style.display = "block";
+  modalTitle.innerText = `[HS ${hscode}] 관세율 정보`;
+  loading.style.display = "block";
+  table.style.display = "none";
+  tbody.innerHTML = ""; // 기존 데이터 비우기
+
+  try {
+    // 2. 백엔드 API 호출 (/api/tariff/코드)
+    const response = await fetch(`/api/tariff/${hscode}`);
+    
+    // 응답이 성공적이지 않으면 에러 처리
+    if (!response.ok) throw new Error("서버 응답 오류");
+
+    const data = await response.json();
+    loading.style.display = "none";
+
+    // 3. 데이터 렌더링
+    // data가 비어있거나 에러 메시지가 있는 경우
+    if (!data || data.length === 0 || data.error) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color: #666;">
+          해당 코드에 대한 관세율 정보가 없습니다.<br>(DB에 저장된 코드가 맞는지 확인해주세요)
+      </td></tr>`;
+    } else {
+      // 데이터가 있으면 테이블 행 추가
+      data.forEach((row) => {
+        const tr = document.createElement("tr");
+        
+        // 세율 0%인 경우 강조 표시 (선택사항)
+        const rateStyle = row.rate == 0 ? "color:blue; font-weight:bold;" : "";
+        
+        tr.innerHTML = `
+            <td style="text-align:center;">${row.priority}순위</td>
+            <td style="text-align:center; font-weight:bold; color:#333;">${row.code}</td>
+            <td>${row.description}</td>
+            <td style="text-align:right; ${rateStyle}">${row.rate}%</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    table.style.display = "table"; // 테이블 보이기
+
+  } catch (error) {
+    console.error("Error fetching tariff:", error);
+    loading.style.display = "none";
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:red; padding:20px;">
+        데이터를 불러오는 중 오류가 발생했습니다.<br>${error.message}
+    </td></tr>`;
+    table.style.display = "table";
+  }
+}
+
+// 모달 닫기 함수
+function closeModal() {
+  document.getElementById("tariffModal").style.display = "none";
+}
+
+// 모달 바깥 배경 클릭 시 닫기
+window.onclick = function (event) {
+  const modal = document.getElementById("tariffModal");
+  if (event.target == modal) {
+    closeModal();
+  }
+};

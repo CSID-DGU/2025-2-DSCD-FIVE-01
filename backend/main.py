@@ -3,6 +3,10 @@ import os
 import sys
 from typing import List, Optional
 
+# 관세율 조회 라이브러리
+import pandas as pd
+from sqlalchemy import create_engine
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -29,6 +33,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 관세율 sql 데이터베이스 연결 설정
+db_path = os.path.join(root_dir, "/data/tariff_db.sqlite3")
+db_connection = create_engine(f"sqlite:///{db_path}")
 
 # ------------ 1) API 스키마 ------------
 
@@ -132,6 +140,47 @@ async def api_classify(item: ItemInput):
         # 백엔드에서 어떤 오류가 나든 프론트에서는 500으로 인지
         raise HTTPException(status_code=500, detail=str(e))
 
+# 관세율 조회 엔드포인트
+@app.get("/api/tariff/{hscode}")
+def get_tariff_info(hscode: str):
+    """
+    HS코드(10자리)를 받아서 관세율 정보를 DB에서 조회하여 반환
+    """
+    # 쿼리 작성 (테이블 이름: tariff_mapping / tariff_ranking 인지,
+    # 아니면 hs_tariff_map / tariff_master 인지 본인이 저장한 이름으로 확인 필수!)
+    # 여기서는 안전하게 앞서 대화에서 저장했던 'hs_tariff_map'과 'tariff_master'로 가정합니다.
+    
+    query = f"""
+    SELECT 
+        m.tariff_code as code,
+        r.description as description,
+        m.rate as rate,
+        r.priority as priority
+    FROM 
+        hs_tariff_map m
+    LEFT JOIN 
+        tariff_master r 
+        ON m.tariff_code = r.tariff_code
+    WHERE 
+        m.hscode = '{hscode}'
+    ORDER BY 
+        r.priority ASC, 
+        m.rate ASC
+    """
+    
+    try:
+        # DB에서 데이터 읽기
+        df = pd.read_sql(query, db_connection)
+        
+        # 결과를 딕셔너리 리스트로 변환 (JSON 호환)
+        # 예: [{'code': 'A', 'rate': 8.0, ...}, {'code': 'C', ...}]
+        result = df.to_dict(orient='records')
+        return result
+        
+    except Exception as e:
+        print(f"Error executing query: {e}")
+        # 에러가 나더라도 서버가 죽지 않고 빈 리스트나 에러 메시지를 반환하도록 처리
+        return {"error": str(e), "data": []}
 
 # ------------ 3) 정적 프론트엔드 서빙 ------------
 

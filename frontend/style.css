@@ -308,3 +308,80 @@ body {
   0%, 80%, 100% { transform: scale(0); }
   40% { transform: scale(1); }
 }
+
+/* ▼▼▼ [2] 관세율 팝업 관련 스타일 추가 ▼▼▼ */
+
+/* 채팅창 내 HS Code 링크 스타일 */
+.hs-link {
+    color: #007bff;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+.hs-link:hover {
+    color: #0056b3;
+    background-color: #e7f1ff;
+    border-radius: 4px;
+}
+
+/* 모달 배경 (어두운 반투명) */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 9999; 
+    left: 0; top: 0;
+    width: 100%; height: 100%; 
+    background-color: rgba(0,0,0,0.5);
+    backdrop-filter: blur(2px); /* 배경 살짝 흐리게 */
+}
+
+/* 모달 내용 박스 */
+.modal-content {
+    background-color: #fff;
+    margin: 10vh auto; /* 화면 위에서 10% 위치 */
+    padding: 25px;
+    border: 1px solid #ddd;
+    width: 90%;
+    max-width: 700px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    position: relative;
+    animation: slideDown 0.3s ease-out;
+}
+
+/* 닫기 버튼 */
+.close {
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.close:hover { color: #333; }
+
+/* 관세율 테이블 */
+.tariff-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    font-size: 14px;
+}
+.tariff-table th, .tariff-table td {
+    border-bottom: 1px solid #eee;
+    padding: 12px;
+    text-align: left;
+}
+.tariff-table th {
+    background-color: #f8f9fa;
+    color: #555;
+    font-weight: 600;
+}
+.tariff-table tr:hover { background-color: #f9f9f9; }
+
+@keyframes slideDown {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}

@@ -48,10 +48,13 @@
       [최종 JSON 응답]
 ```
 
-### 지원 데이터베이스
+### 데이터베이스
 - **Case ChromaDB**: 품목분류사례 검색 
-- **Neo4j GraphDB**: HS 코드 계층 구조를 그래프로 표현하여 검색 
-- **Nomenclature ChromaDB**: HS 해설서 검색 
+- **Nomenclature ChromaDB**: HS 해설서 검색
+- **Neo4j GraphDB**: HS 코드 계층 구조를 그래프로 표현하여 검색 (If graphDB is not recognized, you need to turn on the DB.)
+
+![ChromaDB](https://drive.google.com/file/d/1xFnkGD6FRgempZxi2orwkOICGHQD2hUH/view?usp=sharing)
+
 
 ### 최종 모델 특징
 - **임베딩 모델**: `text-embedding-3-large`

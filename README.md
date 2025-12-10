@@ -69,35 +69,44 @@
 ```
 2025-2-DSCD-FIVE-01/
 ├── LLM/                          # LLM 관련 코드
-│   ├── .env                     # 필요 Key 저장
-│   ├── run_rag_final.py         # 최종 모델 실행 스크립트
-│   ├── rag_module_final.py      # 최종 RAG 모듈 (HSClassifier)
-│   ├── rag_service_final.py     # 최종 RAG 서비스 (FastAPI/Chainlit용)
-│   ├── run_rag.py               # 실험용 실행 스크립트 (레거시)
-│   ├── rag_module.py            # 실험용 RAG 모듈 (레거시)
-│   ├── evaluate.py              # 평가 스크립트
-│   ├── evaluate_and_reason.py   # 추론 과정 포함 평가
+│   ├── .env                     # 환경 변수 (API 키 등)
+│   ├── run_rag.py              # HS Code 분류 실행 스크립트
+│   ├── rag_module.py           # RAG 모듈 (HSClassifier)
+│   ├── rag_service.py           # RAG 서비스 (FastAPI/Chainlit용)
+│   ├── chainlit_app.py          # Chainlit UI 애플리케이션
+│   ├── evaluate.py             # 평가 스크립트
+│   ├── graph_rag.py             # GraphDB RAG 클래스
+│   ├── main.py                  # 메인 실행 파일
 │   ├── Stage1_prompt.txt        # 계층적 1단계 프롬프트
 │   ├── Stage2_prompt.txt        # 계층적 2단계 프롬프트
 │   └── hscode_rule.txt          # HS 코드 규칙
 │
-├── RAG_embedding/                # 임베딩 및 RAG 관련 코드
-│   ├── graph_rag.py             # GraphDB RAG 클래스
-│   ├── graph_embedding.py       # GraphDB 임베딩 생성
-│   ├── embedding_ver2.ipynb     # ChromaDB 임베딩 생성 노트북
-│   └── pdf_to_markdown.py       # PDF → Markdown 변환
-│
 ├── Preprocessing/                # 데이터 전처리
 │   ├── all_hscode_preprocessing.ipynb
-│   └── fill_data.py
+│   ├── check_DB.py              # 데이터베이스 확인 스크립트
+│   ├── exp_preprocessing.ipynb
+│   ├── fill_data.py
+│   └── RAG_embedding/            # 임베딩 및 RAG 관련 코드
+│       ├── embedding_openai_large.ipynb  # OpenAI Large 임베딩 생성
+│       ├── embedding_ver2.ipynb         # ChromaDB 임베딩 생성
+│       ├── embedding.ipynb              # 임베딩 생성 (레거시)
+│       ├── graph_embedding.py           # GraphDB 임베딩 생성
+│       ├── nomenclature_chroma_embedding.py  # Nomenclature 임베딩
+│       └── pdf_to_markdown.py           # PDF → Markdown 변환
 │
 ├── Crawling/                     # 크롤링 관련
-│   └── ...
+│   ├── code_count.ipynb
+│   ├── crawling_remove_duplicate_rows_1005.ipynb
+│   └── 크롤링_함수.ipynb
 │
 ├── data/                         # 데이터 파일
 │   ├── all_hscode.csv           # HS 코드 전체 목록
-│   ├── eval_dataset_*.csv       # 평가 데이터셋
-│   ├── chroma_db_openai_large_kw/  # ChromaDB 인덱스 (최종 모델용)
+│   ├── hscode_*.csv              # HS 코드 관련 CSV 파일
+│   ├── 관세율*.csv                # 관세율 관련 CSV 파일
+│   ├── 품목분류사례_*.csv.zip     # 품목분류사례 데이터
+│   ├── HS_code_Nomenclature.md   # HS 코드 명명법 문서 (Markdown)
+│   ├── HS_code_Nomenclature.pdf  # HS 코드 명명법 문서 (PDF)
+│   ├── chroma_db_openai_large_kw/  # ChromaDB 인덱스
 │   └── nomenclature_chroma_db/  # 해설서 ChromaDB
 │
 ├── backend/                      # FastAPI 백엔드
@@ -108,10 +117,22 @@
 │   ├── main.js
 │   └── style.css
 │
-├── output/                       # 결과 파일
-│   └── results/                  # 평가 결과
+├── src/                          # React 프론트엔드 소스
+│   ├── App.jsx
+│   ├── index.js
+│   ├── index.css
+│   └── components/
+│       ├── ProductInputForm.jsx
+│       └── ResultList.jsx
 │
+├── assets/                       # 이미지 및 리소스
+│   ├── Overall_Figure.png        # 시스템 아키텍처 다이어그램
+│   └── Chatbot_Result.png        # 챗봇 출력 예시
+│
+├── requirements.txt              # Python 의존성
+├── README.md                     # 프로젝트 문서
 └── check.py                      # 유틸리티 스크립트
+
 ```
 
 ---

@@ -123,6 +123,8 @@
 │   ├── Overall_Figure.png
 │   └── Chatbot_Result.png
 │
+├── start_server_with_ngrok.py    # 서버 자동 실행 스크립트 (uvicorn + ngrok)
+├── start_server_with_ngrok.bat   # Windows 실행 파일
 ├── requirements.txt
 ├── README.md
 └── check.py 
@@ -204,20 +206,40 @@ python LLM/run_rag_final.py \
 ```
 
 ### 5.2 실행 (FastAPI 서버)
+
+#### 방법 1: 자동 실행 (권장)
+프로젝트 루트에서 실행 파일을 실행하면 uvicorn 서버와 ngrok을 자동으로 시작하고 브라우저를 엽니다:
+
+**Windows:**
 ```bash
+start_server_with_ngrok.bat
+```
+
+**또는 Python 직접 실행:**
+```bash
+python start_server_with_ngrok.py
+```
+
+#### 방법 2: 수동 실행
+```bash
+# 터미널 1: FastAPI 서버 실행
 uvicorn backend.main:app --host localhost --port 8000
+
+# 터미널 2: ngrok 실행
+ngrok http 8000
 ```
 
 서버 실행 후 브라우저에서 `http://localhost:8000` 접속하여 웹 UI 사용 가능
 
 ### 5.3. ngrok 임시 배포
 
-5.2의 FastAPI 서버 실행 후 새로운 터미널에서 아래 코드를 통해 임시 url 생성 
+ngrok을 처음 사용하는 경우 인증 토큰을 설정해야 합니다:
 
 ```bash
 ngrok config authtoken {YOUR_NGROK_TOKEN}
-ngrok http 8000
 ```
+
+자동 실행 파일(`start_server_with_ngrok.py`)을 사용하면 ngrok이 자동으로 시작되고 Public URL이 브라우저에서 열립니다.
 ---
 
 ## 6) 입력/출력 형식
@@ -306,9 +328,9 @@ ngrok http 8000
   - LLM을 통해 최종 10자리 코드 예측
 
 ### 7.2 다중 데이터베이스 통합 검색
-- **ChromaDB (Vector Search)**: 유사한 품목분류 사례 검색
-- **GraphDB (Graph Search)**: HS 코드 계층 구조를 활용한 검색
-- **Nomenclature ChromaDB**: HS 공식 명명법 문서 검색 (항상 사용)
+- **ChromaDB**: 유사한 품목분류 사례 검색
+- **Nomenclature ChromaDB**: HS 공식 명명법 문서 검색
+- **GraphDB**: HS 코드 계층 구조를 활용한 검색
 
 ---
 

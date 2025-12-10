@@ -250,9 +250,6 @@ ngrok http 8000
   "inference_time_seconds": 2.345
 }
 
-### 6.3. Chatbot 출력 예시
-
-![Chatbot_Result](assets/Chatbot_Result.png)
 ```
 
 **주요 필드 설명:**
@@ -272,6 +269,9 @@ ngrok http 8000
 - `step1_6digit_codes`: 1단계에서 예측된 6자리 코드 배열
 - `inference_time_seconds`: 추론 소요 시간 (초)
 
+### 6.3. Chatbot 출력 예시
+
+![Chatbot_Result](assets/Chatbot_Result.png)
 ---
 
 ## 7) 주요 기능 상세

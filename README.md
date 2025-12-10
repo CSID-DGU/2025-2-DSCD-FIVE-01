@@ -18,6 +18,7 @@
 - 🏗️ **계층적 RAG**: 2단계(6자리→10자리) 분류
 - 🧪 **평가 시스템**: 자리수별 정확도 제공
 
+![Overall_Figure](assets/Overall_Figure.png)
 ---
 
 ## 2) 시스템 아키텍처
@@ -248,6 +249,10 @@ ngrok http 8000
   "step1_6digit_codes": ["8539.50", "9405.40"],
   "inference_time_seconds": 2.345
 }
+
+### 6.3. Chatbot 출력 예시
+
+![Chatbot_Result](assets/Chatbot_Result.png)
 ```
 
 **주요 필드 설명:**

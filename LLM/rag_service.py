@@ -18,15 +18,14 @@ from rag_module import HSClassifier
 
 
 # === 1. 앱 시작 시 단 한 번만 RAG 엔진 초기화 ===
-print("[rag_service] RAG 엔진 로딩 중...")
+print("[rag_service] RAG 엔진 로딩 중... (최종 모델)")
 
 classifier = HSClassifier(
-    parser_type="both",
     embed_model="text-embedding-3-large",
     chroma_dir=os.path.join(parent_dir, "data", "chroma_db_openai_large_kw"),
     collection_name="hscode_collection",
     use_keyword_extraction=True,
-    translate_to_english=False,
+    use_nomenclature=True,  # 항상 사용
 )
 
 print("[rag_service] RAG 엔진 로딩 완료!")

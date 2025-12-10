@@ -1,20 +1,20 @@
 # LLM 기반 HS 코드 추천 시스템
 
 > **목표**: 상품명/설명 같은 **텍스트 입력**만으로 HS 코드 **Top-K 후보**와 **설명 가능한 근거**를 구조화 JSON으로 제공합니다.  
-> **핵심**: RAG 기반 검색 근거 + LLM 생성 + 사후 검증(코드 유효성·근거 일치·스키마 룰)로 **환각(할루시네이션) 최소화**.  
+> **핵심**: RAG 기반 검색 근거 + LLM 생성 
 
 ---
 
 ## 1) 개요
 
 - **프로젝트명**: LLM 기반 HS Code Recommendation
-- **과목**: 데이터사이언스 캡스톤디자인  
+- **과목**: 2025-2 DSCD  
 - **목표**: 자연어로 입력된 상품 정보(상품명·설명)를 바탕으로 **HS 코드 Top-K**과 **근거 텍스트**를 반환
 
 ### 주요 제공 기능
 - 🔎 **Top-N HS 코드 추천** (LLM + RAG)
 - 📚 **근거 텍스트 제공**: 검색된 규정/해설/사례의 관련 문단을 함께 제시
-- 🗄️ **다중 데이터베이스 지원**: ChromaDB (Vector DB) + Neo4j (Graph DB)
+- 🗄️ **다중 데이터베이스 지원**: Case  & Nomenclature ChromaDB (Vector DB) + Neo4j (Graph DB)
 - 🏗️ **계층적 RAG**: 2단계(6자리→10자리) 분류
 - 🧪 **평가 시스템**: 자리수별 정확도 제공
 
@@ -120,6 +120,7 @@
 - Neo4j 데이터베이스 연결
 - ChromaDB 데이터베이스 (경로: data/)
 - 인터넷 연결 (LLM·임베딩 모델 사용 시)
+- ngrok
 
 ### 4.2 의존성 설치
 ```bash
@@ -190,6 +191,14 @@ uvicorn backend.main:app --host localhost --port 8000
 
 서버 실행 후 브라우저에서 `http://localhost:8000` 접속하여 웹 UI 사용 가능
 
+### 5.3. ngrok 임시 배포
+
+5.2의 FastAPI 서버 실행 후 새로운 터미널에서 아래 코드를 통해 임시 url 생성 
+
+```bash
+ngrok config authtoken {YOUR_NGROK_TOKEN}
+ngrok http 8000
+```
 ---
 
 ## 6) 입력/출력 형식

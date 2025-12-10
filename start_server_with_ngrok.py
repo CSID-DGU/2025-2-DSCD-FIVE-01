@@ -8,6 +8,73 @@ import requests
 import sys
 import os
 
+def check_ngrok_authtoken():
+    """ngrok authtoken이 설정되어 있는지 확인하고, 없으면 입력받아 설정"""
+    print("🔍 ngrok authtoken 확인 중...")
+    try:
+        # ngrok config check로 authtoken 확인
+        result = subprocess.run(
+            ["ngrok", "config", "check"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=5
+        )
+        
+        # stderr에 authtoken 관련 에러가 없으면 설정되어 있는 것으로 간주
+        output = (result.stdout + result.stderr).lower()
+        if "authtoken" in output and ("not found" in output or "missing" in output or "required" in output):
+            # authtoken이 설정되어 있지 않음
+            pass
+        else:
+            # authtoken이 설정되어 있음
+            print("✅ ngrok authtoken이 이미 설정되어 있습니다.")
+            return True
+    except FileNotFoundError:
+        print("❌ ngrok이 설치되어 있지 않거나 PATH에 없습니다.")
+        print("💡 ngrok을 설치하고 PATH에 추가해주세요.")
+        return False
+    except (subprocess.TimeoutExpired, Exception) as e:
+        # 확인 실패 시에도 진행 (이미 설정되어 있을 수 있음)
+        print("⚠️  ngrok authtoken 확인 중 오류가 발생했습니다. 계속 진행합니다...")
+        return True
+    
+    # authtoken이 설정되어 있지 않으면 입력받기
+    print("⚠️  ngrok authtoken이 설정되어 있지 않습니다.")
+    print("💡 ngrok authtoken은 https://dashboard.ngrok.com/get-started/your-authtoken 에서 확인할 수 있습니다.")
+    print()
+    
+    while True:
+        authtoken = input("ngrok authtoken을 입력하세요: ").strip()
+        if not authtoken:
+            print("❌ authtoken을 입력해주세요.")
+            continue
+        
+        # authtoken 설정 시도
+        try:
+            result = subprocess.run(
+                ["ngrok", "config", "authtoken", authtoken],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                print("✅ ngrok authtoken이 성공적으로 설정되었습니다!")
+                return True
+            else:
+                error_msg = result.stderr.strip() or result.stdout.strip()
+                print(f"❌ authtoken 설정 실패: {error_msg}")
+                retry = input("다시 시도하시겠습니까? (y/n): ").strip().lower()
+                if retry != 'y':
+                    return False
+        except Exception as e:
+            print(f"❌ 오류 발생: {e}")
+            retry = input("다시 시도하시겠습니까? (y/n): ").strip().lower()
+            if retry != 'y':
+                return False
+
 def start_uvicorn():
     """uvicorn 서버를 백그라운드로 시작"""
     print("🚀 uvicorn 서버 시작 중...")
@@ -68,6 +135,12 @@ def main():
     print("=" * 60)
     print("HS Code 분류 시스템 서버 시작")
     print("=" * 60)
+    print()
+    
+    # 0. ngrok authtoken 확인 및 설정
+    if not check_ngrok_authtoken():
+        print("❌ ngrok authtoken 설정에 실패했습니다. 프로그램을 종료합니다.")
+        sys.exit(1)
     print()
     
     # 1. uvicorn 서버 시작

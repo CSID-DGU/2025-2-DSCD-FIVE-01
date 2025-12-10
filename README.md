@@ -26,30 +26,37 @@
 [입력(상품명·설명)]
          │
          ▼
-  [전처리·정규화] ──▶ [임베딩] ──▶ [VectorDB/GraphDB 검색]
+  [전처리·키워드 추출] ──▶ [임베딩] ──▶ [다중 DB 검색]
          │                              │
          │                              ├─ ChromaDB (Vector Search)
-         │                              └─ Neo4j (Graph Search)
+         │                              ├─ Neo4j (Graph Search)
+         │                              └─ Nomenclature ChromaDB
          │
          ▼
-      [LLM 생성(JSON 스키마 강제)]
+      [Stage 1: 6자리 예측]
          │
-         ├─ 계층적 모드: 6자리 → 10자리
+         ├─ 3개의 DB에서 검색된 컨텍스트 + LLM
          │
-         ├─ 검증① 코드 유효성(존재/형식/계층 규칙)
-         ├─ 검증② 근거-응답 일치도(semantic entailment)
-         └─ 검증③ 스키마/룰(JSON 키/타입/금지표현)
+         ▼
+      [Stage 2: 10자리 예측]
+         │
+         ├─ Stage 1 결과 하위 범위로 검색
+         ├─ 검색된 컨텍스트 + LLM
+         │
          ▼
       [최종 JSON 응답]
 ```
 
 ### 지원 데이터베이스
-- **Case ChromaDB**: 품목분류사례 검색
-- **Neo4j GraphDB**: HS 코드 계층 구조를 그래프로 표현하여 검색
-- **Nomenclature ChromaDB**: HS 해설서 검색
+- **Case ChromaDB**: 품목분류사례 검색 
+- **Neo4j GraphDB**: HS 코드 계층 구조를 그래프로 표현하여 검색 
+- **Nomenclature ChromaDB**: HS 해설서 검색 
 
-### 지원 임베딩 모델
-- `text-embedding-3-large` (OpenAI)
+### 최종 모델 특징
+- **임베딩 모델**: `text-embedding-3-large`
+- **검색 모드**: ChromaDB + GraphDB + NomenclatureDB
+- **분류 방식**: 계층적 2단계 RAG (6자리 → 10자리)
+- **키워드 추출**: KoNLPy (Okt) 사용
 
 ---
 
@@ -59,8 +66,11 @@
 2025-2-DSCD-FIVE-01/
 ├── LLM/                          # LLM 관련 코드
 │   ├── .env                     # 필요 Key 저장
-│   ├── run_rag.py               # 메인 실행 스크립트
-│   ├── rag_module.py            # 핵심 RAG 모듈 (HSClassifier)
+│   ├── run_rag_final.py         # 최종 모델 실행 스크립트
+│   ├── rag_module_final.py      # 최종 RAG 모듈 (HSClassifier)
+│   ├── rag_service_final.py     # 최종 RAG 서비스 (FastAPI/Chainlit용)
+│   ├── run_rag.py               # 실험용 실행 스크립트 (레거시)
+│   ├── rag_module.py            # 실험용 RAG 모듈 (레거시)
 │   ├── evaluate.py              # 평가 스크립트
 │   ├── evaluate_and_reason.py   # 추론 과정 포함 평가
 │   ├── Stage1_prompt.txt        # 계층적 1단계 프롬프트
@@ -83,8 +93,16 @@
 ├── data/                         # 데이터 파일
 │   ├── all_hscode.csv           # HS 코드 전체 목록
 │   ├── eval_dataset_*.csv       # 평가 데이터셋
-│   ├── chroma_db_*/             # ChromaDB 인덱스
-│   └── nomenclature_chroma_db/  # 명명법 ChromaDB
+│   ├── chroma_db_openai_large_kw/  # ChromaDB 인덱스 (최종 모델용)
+│   └── nomenclature_chroma_db/  # 해설서 ChromaDB
+│
+├── backend/                      # FastAPI 백엔드
+│   └── main.py                  # FastAPI 애플리케이션
+│
+├── frontend/                     # 프론트엔드
+│   ├── index.html
+│   ├── main.js
+│   └── style.css
 │
 ├── output/                       # 결과 파일
 │   └── results/                  # 평가 결과
@@ -97,8 +115,10 @@
 ## 4) 설치 및 실행
 
 ### 4.1 요구사항
-- Python 3.10+
-- Neo4j 데이터베이스 (GraphDB 사용 시)
+- Python 3.10
+- openjdk 24.0.2
+- Neo4j 데이터베이스 연결
+- ChromaDB 데이터베이스 (경로: data/)
 - 인터넷 연결 (LLM·임베딩 모델 사용 시)
 
 ### 4.2 의존성 설치
@@ -116,7 +136,7 @@ pip install -r requirements.txt
 # OpenAI API
 OPENAI_API_KEY=your_openai_key
 
-# Neo4j GraphDB (GraphDB 사용 시)
+# Neo4j GraphDB 
 NEO4J_URI=your_neo4j_url
 NEO4J_USER=your_username
 NEO4J_PASS=your_password
@@ -124,7 +144,7 @@ INDEX_NAME=hs_code_index
 
 # ChromaDB
 CHROMA_DIR=data/chroma_db_openai_large_kw
-CHROMA_COLLECTION=default
+CHROMA_COLLECTION=hscode_collection
 
 # 재현성
 SEED=42
@@ -135,7 +155,7 @@ SEED=42
 #### ChromaDB 인덱스 구축
 ```bash
 # Jupyter 노트북 실행
-jupyter notebook RAG_embedding/embedding_ver2.ipynb
+jupyter notebook RAG_embedding/embedding_openai_large.ipynb
 ```
 
 #### Neo4j GraphDB 설정
@@ -145,6 +165,7 @@ jupyter notebook RAG_embedding/embedding_ver2.ipynb
 ```bash
 python RAG_embedding/graph_embedding.py
 ```
+4. Neo4j GraphDB Connect 상태 유지
 
 ---
 
@@ -152,79 +173,114 @@ python RAG_embedding/graph_embedding.py
 
 ### 5.1 실행 (CLI)
 
-#### 2단계 (6자리 → 10자리)
+#### 최종 모델 실행 (계층적 2단계 RAG)
 ```bash
-python LLM/run_rag.py \
-  --parser both+nomenclature \
-  --hierarchical \
+
+python LLM/run_rag_final.py \
   --name "LED 조명" \
   --desc "플라스틱 하우징에 장착된 LED 조명 모듈" \
-  --top-n 5
+
+
 ```
 
+### 5.2 실행 (FastAPI 서버)
+```bash
+uvicorn backend.main:app --host localhost --port 8000
+```
+
+서버 실행 후 브라우저에서 `http://localhost:8000` 접속하여 웹 UI 사용 가능
+
 ---
 
-## 6) 평가
+## 6) 입력/출력 형식
 
-
----
-
-## 7) 입력/출력 형식
-
-### 7.1 입력
+### 6.1 입력
 - **상품명** (`--name`): 상품의 이름
 - **상품 설명** (`--desc`): 상품에 대한 상세 설명
 
-### 7.2 출력 예시(JSON)
+### 6.2 출력 예시(JSON)
 ```json
 {
   "candidates": [
     {
-      "hs_code": "8539.50.0000",
+      "hs_code": "8539.50-1000",
       "title": "LED 조명",
-      "hierarchy": {
-        "chapter": "85",
-        "heading": "8539",
-        "subheading": "8539.50",
-        "national": "8539.50.0000"
-      },
-      "evidence": [
+      "reason": "LED 조명은 전기 조명 기구로 분류됩니다. 제공된 상품은 플라스틱 하우징에 장착된 LED 조명 모듈로, HS 코드 8539.50-1000에 해당합니다...",
+      "citations": [
         {
-          "source_id": "doc_001",
-          "source_title": "품목분류 해설",
-          "evidence_text": "LED 조명은 전기 조명 기구로 분류됩니다...",
-          "loc": "Chapter 85, Section 3"
+          "type": "graph",
+          "code": "8539.50"
+        },
+        {
+          "type": "case",
+          "doc_id": "case_001"
         }
       ],
-      "confidence": {
-        "retrieval_score": 0.85,
-        "entailment_score": 0.92
+      "hierarchy_definitions": {
+        "chapter_2digit": {
+          "code": "85",
+          "definition": "전기 기계류 및 그 부분품"
+        },
+        "heading_4digit": {
+          "code": "8539",
+          "definition": "전기 조명 기구"
+        },
+        "subheading_6digit": {
+          "code": "8539.50",
+          "definition": "LED 조명 기구"
+        },
+        "national_10digit": {
+          "code": "8539.50-1000",
+          "definition": "LED 조명 모듈"
+        }
       }
     }
   ],
-  "meta": {
-    "top_n_requested": 5,
-    "top_k_retrieval": 15,
-    "inference_time_seconds": 2.345
-  }
+  "step1_6digit_codes": ["8539.50", "9405.40"],
+  "inference_time_seconds": 2.345
 }
 ```
 
+**주요 필드 설명:**
+- `candidates`: 추천된 HS 코드 후보 배열 (최대 top_k개)
+  - `hs_code`: 10자리 HS 코드 (예: "8539.50-1000")
+  - `title`: 상품명 또는 제목 (선택적)
+  - `reason`: 해당 코드를 추천한 이유 (한국어, 상세 설명)
+  - `citations`: 검색 근거 배열
+    - `type`: "graph" (GraphDB 근거) 또는 "case" (VectorDB 근거)
+    - `code`: GraphDB 근거인 경우 HS 코드
+    - `doc_id`: VectorDB 근거인 경우 문서 ID
+  - `hierarchy_definitions`: HS 코드 계층별 정의
+    - `chapter_2digit`: 2자리 장(Chapter) 정의
+    - `heading_4digit`: 4자리 호(Heading) 정의
+    - `subheading_6digit`: 6자리 소호(Subheading) 정의
+    - `national_10digit`: 10자리 국가 세분류 정의
+- `step1_6digit_codes`: 1단계에서 예측된 6자리 코드 배열
+- `inference_time_seconds`: 추론 소요 시간 (초)
+
 ---
 
-## 8) 주요 기능 상세
+## 7) 주요 기능 상세
 
-### 8.1 계층적 RAG
-- **2단계**: 6자리 코드 예측 → 해당 코드 하위에서 10자리 예측
-- 각 단계에서 GraphDB를 활용하여 계층 구조를 고려한 검색 수행
+### 7.1 계층적 RAG (2단계)
+- **Stage 1 (6자리 예측)**: 
+  - ChromaDB + GraphDB에서 관련 사례 및 계층 정보 검색
+  - Nomenclature 문서에서 관련 규정 검색
+  - LLM을 통해 상위 6자리 코드 예측
+- **Stage 2 (10자리 예측)**:
+  - Stage 1에서 예측된 6자리 코드 하위에서만 검색 범위 제한
+  - ChromaDB + GraphDB에서 해당 6자리 코드 하위 사례 검색
+  - Nomenclature 문서에서 해당 섹션 검색
+  - LLM을 통해 최종 10자리 코드 예측
 
-### 8.2 키워드 추출
-- 한국어 입력에 대해 KoNLPy (Okt)를 사용한 키워드 추출
-- 추출된 키워드를 검색 쿼리에 추가하여 검색 품질 향상
+### 7.2 다중 데이터베이스 통합 검색
+- **ChromaDB (Vector Search)**: 유사한 품목분류 사례 검색
+- **GraphDB (Graph Search)**: HS 코드 계층 구조를 활용한 검색
+- **Nomenclature ChromaDB**: HS 공식 명명법 문서 검색 (항상 사용)
 
 ---
 
-## 9) 참고 자료
+## 8) 참고 자료
 
 - HS 코드 공식 명명법 문서: `data/HS_code_Nomenclature.md`
 - 프롬프트 템플릿: `LLM/Stage1_prompt.txt`, `LLM/Stage2_prompt.txt`

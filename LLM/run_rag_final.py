@@ -12,18 +12,10 @@ import time
 # from rag_module import HSClassifier, ParserType, set_all_seeds
 from rag_module_final import HSClassifier, set_all_seeds
 
-EMBED_MODEL_CHOICES = {
-    "openai_small": "text-embedding-3-small",
-    "openai_large": "text-embedding-3-large",
-    "paraphrase-multilingual-minilm-l12-v2": "paraphrase-multilingual-MiniLM-L12-v2",
-    "intfloat/multilingual-e5-small": "intfloat/multilingual-e5-small",
-}
+EMBED_MODEL_CHOICES = "text-embedding-3-large"
 
-EMBED_CHROMA_DIR = {
-    "openai_small": "data/chroma_db_openai_small_kw",
-    "openai_large": "data/chroma_db_openai_large_kw",
-    "intfloat/multilingual-e5-small": "data/chroma_db_e5_small_kw",
-}
+
+EMBED_CHROMA_DIR = "data/chroma_db_openai_large_kw"
 
 
 def main():
@@ -103,10 +95,10 @@ def main():
     
     # HSClassifier 인스턴스 생성
     print(f"=== HS Code 분류 시스템 초기화 (최종 모델) ===")
-    resolved_chroma_dir = args.chroma_dir or EMBED_CHROMA_DIR.get(embed_model_key)
+    resolved_chroma_dir = args.chroma_dir or EMBED_CHROMA_DIR
     print(f"모드: ChromaDB + GraphDB (both)")
     print(f"Nomenclature ChromaDB: 사용 (고정)")
-    print(f"임베딩 모델: {embed_model_key} ({EMBED_MODEL_CHOICES[embed_model_key]}) (고정)")
+    print(f"임베딩 모델: {embed_model_key} ({EMBED_MODEL_CHOICES}) (고정)")
     if resolved_chroma_dir:
         print(f"ChromaDB 디렉터리: {resolved_chroma_dir}")
     print(f"상품명: {args.name}")
@@ -115,7 +107,7 @@ def main():
 
     try:
         classifier = HSClassifier(
-            embed_model=EMBED_MODEL_CHOICES[embed_model_key],
+            embed_model=EMBED_MODEL_CHOICES,
             use_keyword_extraction=args.use_keyword_extraction,
             seed=seed,
             use_nomenclature=True  # 항상 사용

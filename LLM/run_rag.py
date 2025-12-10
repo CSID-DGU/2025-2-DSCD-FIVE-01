@@ -1,55 +1,36 @@
 # -*- coding: utf-8 -*-
 """
-HS Code 분류 RAG 실행 스크립트
-- Parser 설정을 통해 ChromaDB, GraphDB, 또는 둘 다 선택적으로 사용 가능
+HS Code 분류 RAG 실행 스크립트 (최종 모델)
+- ChromaDB와 GraphDB를 모두 사용하는 계층적 2단계 RAG
+- 항상 both 모드로 동작 (ChromaDB + GraphDB)
 """
 
 import json
 import argparse
 import os
 import time
-from rag_module import HSClassifier, ParserType, set_all_seeds
+# from rag_module import HSClassifier, ParserType, set_all_seeds
+from rag_module import HSClassifier, set_all_seeds
 
-EMBED_MODEL_CHOICES = {
-    "openai_small": "text-embedding-3-small",
-    "openai_large": "text-embedding-3-large",
-    "paraphrase-multilingual-minilm-l12-v2": "paraphrase-multilingual-MiniLM-L12-v2",
-    "intfloat/multilingual-e5-small": "intfloat/multilingual-e5-small",
-}
+EMBED_MODEL_CHOICES = "text-embedding-3-large"
 
-EMBED_CHROMA_DIR = {
-    "openai_small": "data/chroma_db_openai_small_kw",
-    "openai_large": "data/chroma_db_openai_large_kw",
-    "intfloat/multilingual-e5-small": "data/chroma_db_e5_small_kw",
-}
+
+EMBED_CHROMA_DIR = "data/chroma_db_openai_large_kw"
 
 
 def main():
     """메인 실행 함수"""
     parser = argparse.ArgumentParser(
-        description="HS Code 분류 RAG 시스템",
+        description="HS Code 분류 RAG 시스템 (최종 모델)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 사용 예시:
-  # ChromaDB만 사용
-  python run_rag.py --parser chroma --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈"
-  
-  # GraphDB만 사용
-  python run_rag.py --parser graph --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈"
-  
-  # 둘 다 사용
-  python run_rag.py --parser both --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈"
+  # 기본 사용 (계층적 2단계 RAG, OpenAI Large 임베딩, Nomenclature 포함)
+  python run_rag_final.py --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈"
         """
     )
     
     # 필수 인자
-    parser.add_argument(
-        "--parser",
-        type=str,
-        choices=["chroma", "graph", "both", "both+nomenclature"],
-        default="both",
-        help="사용할 DB 설정: 'chroma'(ChromaDB만), 'graph'(GraphDB만), 'both'(ChromaDB+GraphDB), 'both+nomenclature'(ChromaDB+GraphDB+Nomenclature)"
-    )
     parser.add_argument(
         "--name",
         type=str,
@@ -100,114 +81,11 @@ def main():
         dest="use_keyword_extraction",
         help="ChromaDB 검색 시 키워드 추출 사용 안 함 (기본값: 키워드 추출 사용)"
     )
-    parser.add_argument(
-        "--hierarchical",
-        action="store_true",
-        help="계층적 2단계 RAG 사용: 1단계에서 6자리 예측, 2단계에서 10자리 예측 (기본: 미사용)"
-    )
-    parser.add_argument(
-        "--hierarchical-3stage",
-        action="store_true",
-        help="계층적 3단계 RAG 사용: 1단계에서 4자리 예측, 2단계에서 6자리 예측, 3단계에서 10자리 예측 (기본: 미사용)"
-    )
-    parser.add_argument(
-        "--translate-to-english",
-        action="store_true",
-        help="사용자 입력을 영어로 번역하여 RAG 검색 수행 (기본: 미사용)"
-    )
-    # RRF Hybrid 옵션 (Semantic K + BM25 K → RRF)
-    parser.add_argument(
-        "--hybrid-rrf",
-        action="store_true",
-        help="Chroma에서 Semantic K + BM25 K를 RRF로 융합"
-    )
-    parser.add_argument(
-        "--bm25-k",
-        type=int,
-        default=5,
-        help="BM25에서 검색할 문서 수 (기본: 5)"
-    )
-    parser.add_argument(
-        "--rrf-k",
-        type=int,
-        default=60,
-        help="RRF 상수 k (기본: 60)"
-    )
-    parser.add_argument(
-        "--rerank",
-        action="store_true",
-        help="Chroma 검색 결과에 CrossEncoder ReRank 적용 (기본: 미적용)"
-    )
-    parser.add_argument(
-        "--rerank-model",
-        type=str,
-        default=None,
-        help="ReRank에 사용할 CrossEncoder 모델명 (기본값: 환경변수 RERANK_MODEL 또는 ms-marco MiniLM)"
-    )
-    parser.add_argument(
-        "--rerank-top-m",
-        type=int,
-        default=5,
-        help="ReRank 후 상위 몇 개를 컨텍스트에 사용할지 (기본: 5)"
-    )
-    # Graph ReRank 옵션
-    parser.add_argument(
-        "--graph-rerank",
-        action="store_true",
-        help="Graph 후보 코드(4/6자리)에 CrossEncoder ReRank 적용 (기본: 미적용)"
-    )
-    parser.add_argument(
-        "--graph-rerank-model",
-        type=str,
-        default=None,
-        help="Graph ReRank에 사용할 CrossEncoder 모델명 (기본: 환경변수 GRAPH_RERANK_MODEL 또는 ms-marco MiniLM)"
-    )
-    parser.add_argument(
-        "--graph-rerank-top-m",
-        type=int,
-        default=5,
-        help="Graph ReRank 후 상위 몇 개 후보 코드를 사용할지 (기본: 5)"
-    )
-    # Listwise LLM-as-Reranker 옵션
-    parser.add_argument(
-        "--llm-listwise",
-        action="store_true",
-        help="Listwise LLM 재랭킹(슬라이딩 윈도우) 활성화"
-    )
-    parser.add_argument(
-        "--llm-listwise-window",
-        type=int,
-        default=10,
-        help="Listwise 윈도우 크기 w (기본: 10)"
-    )
-    parser.add_argument(
-        "--llm-listwise-step",
-        type=int,
-        default=5,
-        help="Listwise 스텝 s (기본: 5)"
-    )
-    parser.add_argument(
-        "--llm-listwise-max-cand",
-        type=int,
-        default=16,
-        help="Listwise 평가에 사용할 상위 후보 수 M (기본: 16)"
-    )
-    parser.add_argument(
-        "--llm-listwise-top-m",
-        type=int,
-        default=5,
-        help="Listwise 최종 상위 문서 수 (기본: 5)"
-    )
-    parser.add_argument(
-        "--embed-model",
-        type=str,
-        choices=list(EMBED_MODEL_CHOICES.keys()),
-        default="paraphrase-multilingual-minilm-l12-v2",
-        help="쿼리 임베딩에 사용할 모델 선택",
-    )
-    # Graph 하이브리드는 공통 스위치(--hybrid-rrf)와 공통 K(--bm25-k, --rrf-k)를 그대로 사용합니다
     
     args = parser.parse_args()
+    
+    # 임베딩 모델은 항상 openai_large로 고정
+    embed_model_key = "openai_large"
     
     # ===== 재현성을 위한 랜덤 시드 설정 =====
     # 환경변수에서 seed 가져오기 (기본값: 42)
@@ -215,53 +93,26 @@ def main():
     set_all_seeds(seed)
     print(f"랜덤 시드 고정: {seed}")
     
-    # parser 옵션 파싱: nomenclature 사용 여부 확인
-    use_nomenclature = "+nomenclature" in args.parser
-    parser_type = args.parser.replace("+nomenclature", "")
-    
     # HSClassifier 인스턴스 생성
-    print(f"=== HS Code 분류 시스템 초기화 ===")
-    resolved_chroma_dir = args.chroma_dir or EMBED_CHROMA_DIR.get(args.embed_model)
-    print(f"Parser 설정: {parser_type}")
-    print(f"Nomenclature ChromaDB: {'사용' if use_nomenclature else '미사용'}")
-    print(f"영어 번역: {'사용' if args.translate_to_english else '미사용'}")
-    print(f"임베딩 모델: {args.embed_model}")
+    print(f"=== HS Code 분류 시스템 초기화 (최종 모델) ===")
+    resolved_chroma_dir = args.chroma_dir or EMBED_CHROMA_DIR
+    print(f"모드: ChromaDB + GraphDB (both)")
+    print(f"Nomenclature ChromaDB: 사용 (고정)")
+    print(f"임베딩 모델: {embed_model_key} ({EMBED_MODEL_CHOICES}) (고정)")
     if resolved_chroma_dir:
         print(f"ChromaDB 디렉터리: {resolved_chroma_dir}")
     print(f"상품명: {args.name}")
     print(f"상품설명: {args.desc}")
     print()
-    
-    # Hybrid 설정: 하나의 스위치/파라미터로 두 DB 모두에 적용
-    unified_hybrid = args.hybrid_rrf
-    unified_bm25_k = args.bm25_k
-    unified_rrf_k = args.rrf_k
 
     try:
         classifier = HSClassifier(
-            parser_type=parser_type,
-            chroma_dir=resolved_chroma_dir or args.chroma_dir,
-            collection_name=args.collection_name,
-            embed_model=EMBED_MODEL_CHOICES[args.embed_model],
+            embed_model=EMBED_MODEL_CHOICES,
             use_keyword_extraction=args.use_keyword_extraction,
-            use_rrf_hybrid=unified_hybrid,
-            bm25_k=unified_bm25_k,
-            rrf_k=unified_rrf_k,
-            use_rerank=args.rerank,
-            rerank_model=args.rerank_model,
-            rerank_top_m=args.rerank_top_m,
-            use_graph_rerank=args.graph_rerank,
-            graph_rerank_model=args.graph_rerank_model,
-            graph_rerank_top_m=args.graph_rerank_top_m,
-            use_llm_rerank_listwise=args.llm_listwise,
-            llm_rerank_window=args.llm_listwise_window,
-            llm_rerank_step=args.llm_listwise_step,
-            llm_rerank_max_candidates=args.llm_listwise_max_cand,
-            llm_rerank_top_m=args.llm_listwise_top_m,
             seed=seed,
-            translate_to_english=args.translate_to_english,
-            use_nomenclature=use_nomenclature
+            use_nomenclature=True  # 항상 사용
         )
+
     except Exception as e:
         print(f"오류: HSClassifier 초기화 실패: {e}")
         return 1
@@ -275,122 +126,59 @@ def main():
         graph_k=args.graph_k
     )
     
-    print(f"Parser 타입: {contexts['parser_type']}")
     print(f"VectorDB 컨텍스트 길이: {len(contexts['vector_context'])}")
     print(f"GraphDB 컨텍스트 길이: {len(contexts['graph_context'])}")
     print(f"Nomenclature 컨텍스트 길이: {len(contexts.get('nomenclature_context', ''))}")
     
-    if contexts['parser_type'] in ["chroma", "both"]:
-        print("\n--- VectorDB 컨텍스트 (ChromaDB) ---")
-        print(contexts['vector_context'])
+    print("\n--- VectorDB 컨텍스트 (ChromaDB) ---")
+    print(contexts['vector_context'])
     
-    if contexts['parser_type'] in ["graph", "both"]:
-        print("\n--- GraphDB 컨텍스트 ---")
-        print(contexts['graph_context'])
+    print("\n--- GraphDB 컨텍스트 ---")
+    print(contexts['graph_context'])
     
-    # Nomenclature 컨텍스트 출력 (항상 출력)
-    if 'nomenclature_context' in contexts:
+    # Nomenclature 컨텍스트 출력
+    if 'nomenclature_context' in contexts and contexts['nomenclature_context']:
         print("\n--- Nomenclature 컨텍스트 (HS 공식 명명법 문서) ---")
         print(contexts['nomenclature_context'])
     
-    # HS Code 분류 실행
-    print("\n=== HS Code 분류 실행 ===")
-    if args.hierarchical_3stage:
-        print("계층적 3단계 RAG 모드 사용")
-    elif args.hierarchical:
-        print("계층적 2단계 RAG 모드 사용")
+    # HS Code 분류 실행 (항상 계층적 2단계 RAG 사용)
+    print("\n=== HS Code 분류 실행 (계층적 2단계 RAG) ===")
     print("처리 중...")
     
     try:
         # 추론 시작 시간 측정
         start_time = time.perf_counter()
         
-        if args.hierarchical_3stage:
-            # 계층적 3단계 RAG 사용
-            if parser_type not in ["graph", "both"]:
-                print("오류: 계층적 모드는 GraphDB가 필요합니다. --parser를 'graph' 또는 'both'로 설정하세요.")
-                return 1
-            
-            result = classifier.classify_hs_code_hierarchical_3stage(
-                product_name=args.name,
-                product_description=args.desc,
-                top_n=args.top_n,
-                chroma_top_k=args.chroma_top_k,
-                graph_k=args.graph_k
-            )
-        elif args.hierarchical:
-            # 계층적 2단계 RAG 사용
-            if parser_type not in ["graph", "both"]:
-                print("오류: 계층적 모드는 GraphDB가 필요합니다. --parser를 'graph' 또는 'both'로 설정하세요.")
-                return 1
-            
-            result = classifier.classify_hs_code_hierarchical(
-                product_name=args.name,
-                product_description=args.desc,
-                top_n=args.top_n,
-                chroma_top_k=args.chroma_top_k,
-                graph_k=args.graph_k
-            )
-        else:
-            # 기존 1단계 RAG 사용
-            result = classifier.classify_hs_code(
-                product_name=args.name,
-                product_description=args.desc,
-                top_n=args.top_n,
-                chroma_top_k=args.chroma_top_k,
-                graph_k=args.graph_k
-            )
+        # 계층적 2단계 RAG 사용
+        result = classifier.classify_hs_code_hierarchical(
+            product_name=args.name,
+            product_description=args.desc,
+            top_n=args.top_n,
+            chroma_top_k=args.chroma_top_k,
+            graph_k=args.graph_k
+        )
         
         # 추론 종료 시간 측정
         end_time = time.perf_counter()
         inference_time = end_time - start_time
 
-        if isinstance(result, dict) and (args.hierarchical or args.hierarchical_3stage):
+        # 계층형 Stage 컨텍스트 출력
+        if isinstance(result, dict):
             print("\n=== 계층형 Stage 컨텍스트 ===")
 
-            if args.hierarchical:
-                step1_codes = result.get("step1_6digit_codes")
-                if step1_codes:
-                    print(f"- Stage1 (6자리) 예측 코드: {', '.join(step1_codes)}")
+            step1_codes = result.get("step1_6digit_codes")
+            if step1_codes:
+                print(f"- Stage1 (6자리) 예측 코드: {', '.join(step1_codes)}")
 
-                stage2_graph = result.get("graphDB_context_step2") or ""
-                if stage2_graph.strip():
-                    print("\n--- Stage2 입력용 GraphDB 컨텍스트 (Stage1 결과 반영) ---")
-                    print(stage2_graph)
+            stage2_graph = result.get("graphDB_context_step2") or ""
+            if stage2_graph.strip():
+                print("\n--- Stage2 입력용 GraphDB 컨텍스트 (Stage1 결과 반영) ---")
+                print(stage2_graph)
 
-                stage2_chroma = result.get("chromaDB_context_step2") or ""
-                if stage2_chroma.strip():
-                    print("\n--- Stage2 입력용 VectorDB 컨텍스트 (Stage1 결과 반영) ---")
-                    print(stage2_chroma)
-
-            elif args.hierarchical_3stage:
-                step1_codes = result.get("step1_4digit_codes")
-                if step1_codes:
-                    print(f"- Stage1 (4자리) 예측 코드: {', '.join(step1_codes)}")
-
-                stage2_graph = result.get("graphDB_context_step2") or ""
-                if stage2_graph.strip():
-                    print("\n--- Stage2 입력용 GraphDB 컨텍스트 (Stage1 결과 반영) ---")
-                    print(stage2_graph)
-
-                stage2_chroma = result.get("chromaDB_context_step2") or ""
-                if stage2_chroma.strip():
-                    print("\n--- Stage2 입력용 VectorDB 컨텍스트 (Stage1 결과 반영) ---")
-                    print(stage2_chroma)
-
-                step2_codes = result.get("step2_6digit_codes")
-                if step2_codes:
-                    print(f"- Stage2 (6자리) 예측 코드: {', '.join(step2_codes)}")
-
-                stage3_graph = result.get("graphDB_context_step3") or ""
-                if stage3_graph.strip():
-                    print("\n--- Stage3 입력용 GraphDB 컨텍스트 (Stage2 결과 반영) ---")
-                    print(stage3_graph)
-
-                stage3_chroma = result.get("chromaDB_context_step3") or ""
-                if stage3_chroma.strip():
-                    print("\n--- Stage3 입력용 VectorDB 컨텍스트 (Stage2 결과 반영) ---")
-                    print(stage3_chroma)
+            stage2_chroma = result.get("chromaDB_context_step2") or ""
+            if stage2_chroma.strip():
+                print("\n--- Stage2 입력용 VectorDB 컨텍스트 (Stage1 결과 반영) ---")
+                print(stage2_chroma)
         
         # 최종 JSON에서는 컨텍스트 문자열 제거
         if isinstance(result, dict):
@@ -419,75 +207,14 @@ if __name__ == "__main__":
     exit(main())
 
 """
+사용 예시:
 
- ### 키워드 추출하는 버전 ###
- 
-  # ChromaDB만 사용
-  python LLM/run_rag.py --parser chroma --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈"
+
+  # 실제 사용 예시
+  python LLM/run_rag.py --name "오실로스코프(oscilloscope)와 오실로그래프(oscillograph)" --desc "(전자계측기). 대분류: Instruments, apparatus for measuring, checking electrical quantities not meters of heading no. 9028; instruments, apparatus for measuring or detecting alpha, beta, gamma, x-ray, cosmic and other radiations. 중분류: Oscilloscopes and oscillographs."
   
-  # GraphDB만 사용
-  python LLM/run_rag.py --parser graph --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈"
+  python LLM/run_rag.py --name "LED 조명" --desc "알루미늄 하우징의 실내용 LED 조명기구, 220V 전원 사용"
   
-  # 둘 다 사용
-  python LLM/run_rag.py --parser both --embed-model intfloat/multilingual-e5-small --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈"
+  python LLM/run_rag.py --name "DISK NUT ASSY(TES62-300)" --desc "- 나선 가공한 홀(볼트 삽입용)을 가진 원형의 구리 합금 재질 물품 (신청 물품) - 재질: C3771(황동), 크기: M12(나사지름) × 106(전체 외경) × 15(두께) - 용도: 변압기의 누설 전류를 줄이는 탱크 실드(차폐판)를 탱크 내벽에 지지 및 고정하기 위해 사용"
 
-
- ### 영어 번역 버전 ###
-
-  # ChromaDB만 사용
-  python LLM/run_rag.py --parser chroma --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈" --translate-to-english
-  
-  # GraphDB만 사용
-  python LLM/run_rag.py --parser graph --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈" --translate-to-english
-  
-  # 둘 다 사용
-  python LLM/run_rag.py --parser both --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈" --translate-to-english
-  
- ### 키워드 추출 사용 안 하는 버전 ###
-
- # ChromaDB만 사용
-  python LLM/run_rag.py --parser chroma --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈"--no-keyword-extraction
-  
-  # GraphDB만 사용
-  python LLM/run_rag.py --parser graph --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈"--no-keyword-extraction
-  
-  # 둘 다 사용
-  python LLM/run_rag.py --parser both --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈" --no-keyword-extraction
-
-
-  ### 계층적 2단계 RAG 버전 ###
-
-  # 계층적 2단계 모드 (GraphDB 또는 both 필요)
-  python LLM/run_rag.py --parser both --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈" --hierarchical
-
-  ### 계층적 3단계 RAG 버전 ###
-
-  # 계층적 3단계 모드 (GraphDB 또는 both 필요)
-  python LLM/run_rag.py --parser both --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈" --hierarchical-3stage
-
-  ### embed model openai_large 버전 ###
-  python LLM/run_rag.py --parser both --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈" --hierarchical --embed-model openai_large
-
-  ### ReRank 적용 버전 ###
-
-  # ChromaDB ReRank 적용
-  python LLM/run_rag.py --parser chroma --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈" --rerank
-  
-  # GraphDB ReRank 적용
-  python LLM/run_rag.py --parser graph --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈" --graph-rerank
-  
-  # 둘 다 ReRank 적용
-  python LLM/run_rag.py --parser both --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈" --rerank --graph-rerank
-
-  python LLM/run_rag.py --parser both --name "LED 조명" --desc "플라스틱 하우징에 장착된 LED 조명 모듈" --hierarchical --top-n 5
-
- python LLM/run_rag.py --parser both --hierarchical --embed-model openai_large --name "오실로스코프(oscilloscope)와 오실로그래프(oscillograph)" --desc "(전자계측기). 대분류: Instruments, apparatus for measuring, checking electrical quantities not meters of heading no. 9028; instruments, apparatus for measuring or detecting alpha, beta, gamma, x-ray, cosmic and other radiations. 중분류: Oscilloscopes and oscillographs."
-
- 
-
- python LLM/run_rag.py --parser both --hierarchical --embed-model openai_large --name "LED lamp" --desc "This product is a finished LED lamp with a plastic housing and a built-in semiconductor LED light source. It is designed to provide illumination and includes internal driver electronics. The lamp is made mainly of plastic materials such as polycarbonate. It is sold as a complete product, not as a part or kit. Typical size ranges from approximately 50–100 mm in diameter and 50–150 mm in height."
-
-
- python LLM/run_rag.py --parser both --hierarchical --embed-model openai_large --name "DISK NUT ASSY(TES62-300)" --desc "- 나선 가공한 홀(볼트 삽입용)을 가진 원형의 구리 합금 재질 물품 (신청 물품) - 재질: C3771(황동), 크기: M12(나사지름) × ∅106(전체 외경) × 15(두께) - 용도: 변압기의 누설 전류를 줄이는 탱크 실드(차폐판)를 탱크 내벽에 지지 및 고정하기 위해 사용" 
- 
- """
+  """

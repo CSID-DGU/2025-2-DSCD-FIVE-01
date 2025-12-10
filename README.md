@@ -240,6 +240,7 @@ ngrok config authtoken {YOUR_NGROK_TOKEN}
 ```
 
 자동 실행 파일(`start_server_with_ngrok.py`)을 사용하면 ngrok이 자동으로 시작되고 Public URL이 브라우저에서 열립니다.
+
 ---
 
 ## 6) 입력/출력 형식

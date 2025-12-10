@@ -53,7 +53,7 @@
 - **Nomenclature ChromaDB**: HS 해설서 검색
 - **Neo4j GraphDB**: HS 코드 계층 구조를 그래프로 표현하여 검색 (If graphDB is not recognized, you need to turn on the DB.)
 
-![ChromaDB](https://drive.google.com/file/d/1xFnkGD6FRgempZxi2orwkOICGHQD2hUH/view?usp=sharing)
+[ChromaDB](https://drive.google.com/file/d/1xFnkGD6FRgempZxi2orwkOICGHQD2hUH/view?usp=sharing)
 
 
 ### 최종 모델 특징

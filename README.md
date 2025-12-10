@@ -208,7 +208,7 @@ python LLM/run_rag_final.py \
 ### 5.2 실행 (FastAPI 서버)
 
 #### 방법 1: 자동 실행 (권장)
-프로젝트 루트에서 실행 파일을 실행하면 uvicorn 서버와 ngrok을 자동으로 시작하고 브라우저를 엽니다:
+프로젝트 루트에서 실행 파일을 실행하면 uvicorn 서버와 ngrok을 자동으로 시작하고 브라우저를 엽니다(ngrok token 필요)
 
 **Windows:**
 ```bash
